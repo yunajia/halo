@@ -5,6 +5,7 @@ import org.springframework.lang.Nullable;
 import run.halo.app.exception.ForbiddenException;
 import run.halo.app.exception.NotFoundException;
 import run.halo.app.model.entity.User;
+import run.halo.app.model.enums.MFAType;
 import run.halo.app.model.params.UserParam;
 import run.halo.app.service.base.CrudService;
 
@@ -14,6 +15,7 @@ import java.util.Optional;
  * User service interface.
  *
  * @author johnniang
+ * @author ryanwang
  * @date 2019-03-14
  */
 public interface UserService extends CrudService<User, Integer> {
@@ -125,9 +127,23 @@ public interface UserService extends CrudService<User, Integer> {
     void setPassword(@NonNull User user, @NonNull String plainPassword);
 
     /**
-     * Set user default avatar，use Gravatar(http://cn.gravatar.com)
+     * verify user's email and username
      *
-     * @param user user must not be null
+     * @param username username must not be null
+     * @param password password must not be null
+     * @return boolean
      */
-    void setDefaultAvatar(@NonNull User user);
+    boolean verifyUser(@NonNull String username, @NonNull String password);
+
+    /**
+     * Updates user Multi-Factor Auth.
+     *
+     * @param mfaType Multi-Factor Auth Type.
+     * @param mfaKey  Multi-Factor Auth Key.
+     * @param userId  user id must not be null
+     * @return updated user detail
+     */
+    @NonNull
+    User updateMFA(@NonNull MFAType mfaType, String mfaKey, @NonNull Integer userId);
+
 }

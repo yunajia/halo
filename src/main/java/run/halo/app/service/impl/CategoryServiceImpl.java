@@ -15,6 +15,7 @@ import run.halo.app.model.entity.Category;
 import run.halo.app.model.vo.CategoryVO;
 import run.halo.app.repository.CategoryRepository;
 import run.halo.app.service.CategoryService;
+import run.halo.app.service.OptionService;
 import run.halo.app.service.PostCategoryService;
 import run.halo.app.service.base.AbstractCrudService;
 import run.halo.app.utils.ServiceUtils;
@@ -24,12 +25,14 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static run.halo.app.model.support.HaloConst.URL_SEPARATOR;
+
 /**
  * CategoryService implementation class.
  *
  * @author ryanwang
  * @author johnniang
- * @date : 2019-03-14
+ * @date 2019-03-14
  */
 @Slf4j
 @Service
@@ -39,11 +42,15 @@ public class CategoryServiceImpl extends AbstractCrudService<Category, Integer> 
 
     private final PostCategoryService postCategoryService;
 
+    private final OptionService optionService;
+
     public CategoryServiceImpl(CategoryRepository categoryRepository,
-                               PostCategoryService postCategoryService) {
+                               PostCategoryService postCategoryService,
+                               OptionService optionService) {
         super(categoryRepository);
         this.categoryRepository = categoryRepository;
         this.postCategoryService = postCategoryService;
+        this.optionService = optionService;
     }
 
     @Override
@@ -108,8 +115,8 @@ public class CategoryServiceImpl extends AbstractCrudService<Category, Integer> 
 
         // Get children for removing after
         List<Category> children = categories.stream()
-                .filter(category -> Objects.equal(parentCategory.getId(), category.getParentId()))
-                .collect(Collectors.toList());
+            .filter(category -> Objects.equal(parentCategory.getId(), category.getParentId()))
+            .collect(Collectors.toList());
 
         children.forEach(category -> {
             // Convert to child category vo
@@ -118,6 +125,21 @@ public class CategoryServiceImpl extends AbstractCrudService<Category, Integer> 
             if (parentCategory.getChildren() == null) {
                 parentCategory.setChildren(new LinkedList<>());
             }
+
+            StringBuilder fullPath = new StringBuilder();
+
+            if (optionService.isEnabledAbsolutePath()) {
+                fullPath.append(optionService.getBlogBaseUrl());
+            }
+
+            fullPath.append(URL_SEPARATOR)
+                .append(optionService.getCategoriesPrefix())
+                .append(URL_SEPARATOR)
+                .append(child.getSlug())
+                .append(optionService.getPathSuffix());
+
+            child.setFullPath(fullPath.toString());
+
             // Add child
             parentCategory.getChildren().add(child);
         });
@@ -148,13 +170,13 @@ public class CategoryServiceImpl extends AbstractCrudService<Category, Integer> 
     }
 
     @Override
-    public Category getBySlugName(String slugName) {
-        return categoryRepository.getBySlugName(slugName).orElse(null);
+    public Category getBySlug(String slug) {
+        return categoryRepository.getBySlug(slug).orElse(null);
     }
 
     @Override
-    public Category getBySlugNameOfNonNull(String slugName) {
-        return categoryRepository.getBySlugName(slugName).orElseThrow(() -> new NotFoundException("该分类不存在").setErrorData(slugName));
+    public Category getBySlugOfNonNull(String slug) {
+        return categoryRepository.getBySlug(slug).orElseThrow(() -> new NotFoundException("查询不到该分类的信息").setErrorData(slug));
     }
 
     @Override
@@ -165,6 +187,13 @@ public class CategoryServiceImpl extends AbstractCrudService<Category, Integer> 
     @Override
     @Transactional
     public void removeCategoryAndPostCategoryBy(Integer categoryId) {
+        List<Category> categories = listByParentId(categoryId);
+        if (null != categories && categories.size() > 0) {
+            categories.forEach(category -> {
+                category.setParentId(0);
+                update(category);
+            });
+        }
         // Remove category
         removeById(categoryId);
         // Remove post categories
@@ -172,10 +201,32 @@ public class CategoryServiceImpl extends AbstractCrudService<Category, Integer> 
     }
 
     @Override
+    public List<Category> listByParentId(Integer id) {
+        Assert.notNull(id, "Parent id must not be null");
+        return categoryRepository.findByParentId(id);
+    }
+
+    @Override
     public CategoryDTO convertTo(Category category) {
         Assert.notNull(category, "Category must not be null");
 
-        return new CategoryDTO().convertFrom(category);
+        CategoryDTO categoryDTO = new CategoryDTO().convertFrom(category);
+
+        StringBuilder fullPath = new StringBuilder();
+
+        if (optionService.isEnabledAbsolutePath()) {
+            fullPath.append(optionService.getBlogBaseUrl());
+        }
+
+        fullPath.append(URL_SEPARATOR)
+            .append(optionService.getCategoriesPrefix())
+            .append(URL_SEPARATOR)
+            .append(category.getSlug())
+            .append(optionService.getPathSuffix());
+
+        categoryDTO.setFullPath(fullPath.toString());
+
+        return categoryDTO;
     }
 
     @Override
@@ -185,7 +236,7 @@ public class CategoryServiceImpl extends AbstractCrudService<Category, Integer> 
         }
 
         return categories.stream()
-                .map(this::convertTo)
-                .collect(Collectors.toList());
+            .map(this::convertTo)
+            .collect(Collectors.toList());
     }
 }
