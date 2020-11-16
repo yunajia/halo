@@ -221,9 +221,10 @@ public interface ThemeService {
     /**
      * Deletes a theme by key.
      *
-     * @param themeId theme id must not be blank
+     * @param themeId        theme id must not be blank
+     * @param deleteSettings whether all settings of the specified theme should be deleted.
      */
-    void deleteTheme(@NonNull String themeId);
+    void deleteTheme(@NonNull String themeId, @NonNull Boolean deleteSettings);
 
     /**
      * Fetches theme configuration.
@@ -343,7 +344,7 @@ public interface ThemeService {
     /**
      * Fetches a specific release
      *
-     * @param uri theme remote uri must not be null
+     * @param uri     theme remote uri must not be null
      * @param tagName release tag name must not be null
      * @return theme property
      */
@@ -353,7 +354,7 @@ public interface ThemeService {
     /**
      * Fetches a specific branch (clone)
      *
-     * @param uri theme remote uri must not be null
+     * @param uri        theme remote uri must not be null
      * @param branchName wanted branch must not be null
      * @return theme property
      */

@@ -2,6 +2,7 @@ package run.halo.app.controller.content;
 
 import cn.hutool.core.util.IdUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -55,16 +56,16 @@ public class ContentContentController {
     private final AbstractStringCacheStore cacheStore;
 
     public ContentContentController(PostModel postModel,
-                                    SheetModel sheetModel,
-                                    CategoryModel categoryModel,
-                                    TagModel tagModel,
-                                    JournalModel journalModel,
-                                    PhotoModel photoModel,
-                                    LinkModel linkModel,
-                                    OptionService optionService,
-                                    PostService postService,
-                                    SheetService sheetService,
-                                    AbstractStringCacheStore cacheStore) {
+            SheetModel sheetModel,
+            CategoryModel categoryModel,
+            TagModel tagModel,
+            JournalModel journalModel,
+            PhotoModel photoModel,
+            LinkModel linkModel,
+            OptionService optionService,
+            PostService postService,
+            SheetService sheetService,
+            AbstractStringCacheStore cacheStore) {
         this.postModel = postModel;
         this.sheetModel = sheetModel;
         this.categoryModel = categoryModel;
@@ -80,7 +81,7 @@ public class ContentContentController {
 
     @GetMapping("{prefix}")
     public String content(@PathVariable("prefix") String prefix,
-                          Model model) {
+            Model model) {
         if (optionService.getArchivesPrefix().equals(prefix)) {
             return postModel.archives(1, model);
         }
@@ -104,8 +105,8 @@ public class ContentContentController {
 
     @GetMapping("{prefix}/page/{page:\\d+}")
     public String content(@PathVariable("prefix") String prefix,
-                          @PathVariable(value = "page") Integer page,
-                          Model model) {
+            @PathVariable(value = "page") Integer page,
+            Model model) {
         if (optionService.getArchivesPrefix().equals(prefix)) {
             return postModel.archives(page, model);
         } else if (optionService.getJournalsPrefix().equals(prefix)) {
@@ -119,13 +120,16 @@ public class ContentContentController {
 
     @GetMapping("{prefix}/{slug}")
     public String content(@PathVariable("prefix") String prefix,
-                          @PathVariable("slug") String slug,
-                          @RequestParam(value = "token", required = false) String token,
-                          Model model) {
+            @PathVariable("slug") String slug,
+            @RequestParam(value = "token", required = false) String token,
+            Model model) {
         PostPermalinkType postPermalinkType = optionService.getPostPermalinkType();
 
         if (postPermalinkType.equals(PostPermalinkType.DEFAULT) && optionService.getArchivesPrefix().equals(prefix)) {
             Post post = postService.getBySlug(slug);
+            return postModel.content(post, token, model);
+        } else if (postPermalinkType.equals(PostPermalinkType.YEAR) && prefix.length() == 4 && StringUtils.isNumeric(prefix)) {
+            Post post = postService.getBy(Integer.parseInt(prefix), slug);
             return postModel.content(post, token, model);
         } else if (optionService.getSheetPrefix().equals(prefix)) {
             Sheet sheet = sheetService.getBySlug(slug);
@@ -141,9 +145,9 @@ public class ContentContentController {
 
     @GetMapping("{prefix}/{slug}/page/{page:\\d+}")
     public String content(@PathVariable("prefix") String prefix,
-                          @PathVariable("slug") String slug,
-                          @PathVariable("page") Integer page,
-                          Model model) {
+            @PathVariable("slug") String slug,
+            @PathVariable("page") Integer page,
+            Model model) {
         if (optionService.getCategoriesPrefix().equals(prefix)) {
             return categoryModel.listPost(model, slug, page);
         } else if (optionService.getTagsPrefix().equals(prefix)) {
@@ -155,10 +159,10 @@ public class ContentContentController {
 
     @GetMapping("{year:\\d+}/{month:\\d+}/{slug}")
     public String content(@PathVariable("year") Integer year,
-                          @PathVariable("month") Integer month,
-                          @PathVariable("slug") String slug,
-                          @RequestParam(value = "token", required = false) String token,
-                          Model model) {
+            @PathVariable("month") Integer month,
+            @PathVariable("slug") String slug,
+            @RequestParam(value = "token", required = false) String token,
+            Model model) {
         PostPermalinkType postPermalinkType = optionService.getPostPermalinkType();
         if (postPermalinkType.equals(PostPermalinkType.DATE)) {
             Post post = postService.getBy(year, month, slug);
@@ -170,11 +174,11 @@ public class ContentContentController {
 
     @GetMapping("{year:\\d+}/{month:\\d+}/{day:\\d+}/{slug}")
     public String content(@PathVariable("year") Integer year,
-                          @PathVariable("month") Integer month,
-                          @PathVariable("day") Integer day,
-                          @PathVariable("slug") String slug,
-                          @RequestParam(value = "token", required = false) String token,
-                          Model model) {
+            @PathVariable("month") Integer month,
+            @PathVariable("day") Integer day,
+            @PathVariable("slug") String slug,
+            @RequestParam(value = "token", required = false) String token,
+            Model model) {
         PostPermalinkType postPermalinkType = optionService.getPostPermalinkType();
         if (postPermalinkType.equals(PostPermalinkType.DAY)) {
             Post post = postService.getBy(year, month, day, slug);
@@ -187,7 +191,7 @@ public class ContentContentController {
     @PostMapping(value = "archives/{slug:.*}/password")
     @CacheLock(traceRequest = true, expired = 2)
     public String password(@PathVariable("slug") String slug,
-                           @RequestParam(value = "password") String password) throws UnsupportedEncodingException {
+            @RequestParam(value = "password") String password) throws UnsupportedEncodingException {
         Post post = postService.getBy(PostStatus.INTIMATE, slug);
 
         post.setSlug(URLEncoder.encode(post.getSlug(), StandardCharsets.UTF_8.name()));
@@ -208,10 +212,10 @@ public class ContentContentController {
 
             if (optionService.getPostPermalinkType().equals(PostPermalinkType.ID)) {
                 redirectUrl.append("&token=")
-                    .append(token);
+                        .append(token);
             } else {
                 redirectUrl.append("?token=")
-                    .append(token);
+                        .append(token);
             }
         }
 

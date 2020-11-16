@@ -5,6 +5,8 @@ import freemarker.core.TemplateClassResolver;
 import freemarker.template.TemplateException;
 import freemarker.template.TemplateExceptionHandler;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.web.servlet.MultipartProperties;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.jackson.JsonComponentModule;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -17,6 +19,8 @@ import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
+import org.springframework.web.multipart.MultipartResolver;
+import org.springframework.web.multipart.commons.CommonsMultipartResolver;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.ViewResolverRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurationSupport;
@@ -29,6 +33,7 @@ import run.halo.app.factory.StringToEnumConverterFactory;
 import run.halo.app.model.support.HaloConst;
 import run.halo.app.security.resolver.AuthenticationArgumentResolver;
 
+import javax.servlet.MultipartConfigElement;
 import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
@@ -45,6 +50,7 @@ import static run.halo.app.utils.HaloUtils.*;
  */
 @Slf4j
 @Configuration
+@EnableConfigurationProperties(MultipartProperties.class)
 public class WebMvcAutoConfiguration extends WebMvcConfigurationSupport {
 
     private static final String FILE_PROTOCOL = "file:///";
@@ -56,8 +62,8 @@ public class WebMvcAutoConfiguration extends WebMvcConfigurationSupport {
     private final HaloProperties haloProperties;
 
     public WebMvcAutoConfiguration(PageableHandlerMethodArgumentResolver pageableResolver,
-                                   SortHandlerMethodArgumentResolver sortResolver,
-                                   HaloProperties haloProperties) {
+            SortHandlerMethodArgumentResolver sortResolver,
+            HaloProperties haloProperties) {
         this.pageableResolver = pageableResolver;
         this.sortResolver = sortResolver;
         this.haloProperties = haloProperties;
@@ -66,16 +72,16 @@ public class WebMvcAutoConfiguration extends WebMvcConfigurationSupport {
     @Override
     public void extendMessageConverters(List<HttpMessageConverter<?>> converters) {
         converters.stream()
-            .filter(c -> c instanceof MappingJackson2HttpMessageConverter)
-            .findFirst()
-            .ifPresent(converter -> {
-                MappingJackson2HttpMessageConverter mappingJackson2HttpMessageConverter = (MappingJackson2HttpMessageConverter) converter;
-                Jackson2ObjectMapperBuilder builder = Jackson2ObjectMapperBuilder.json();
-                JsonComponentModule module = new JsonComponentModule();
-                module.addSerializer(PageImpl.class, new PageJacksonSerializer());
-                ObjectMapper objectMapper = builder.modules(module).build();
-                mappingJackson2HttpMessageConverter.setObjectMapper(objectMapper);
-            });
+                .filter(c -> c instanceof MappingJackson2HttpMessageConverter)
+                .findFirst()
+                .ifPresent(converter -> {
+                    MappingJackson2HttpMessageConverter mappingJackson2HttpMessageConverter = (MappingJackson2HttpMessageConverter) converter;
+                    Jackson2ObjectMapperBuilder builder = Jackson2ObjectMapperBuilder.json();
+                    JsonComponentModule module = new JsonComponentModule();
+                    module.addSerializer(PageImpl.class, new PageJacksonSerializer());
+                    ObjectMapper objectMapper = builder.modules(module).build();
+                    mappingJackson2HttpMessageConverter.setObjectMapper(objectMapper);
+                });
     }
 
     @Override
@@ -96,28 +102,28 @@ public class WebMvcAutoConfiguration extends WebMvcConfigurationSupport {
 
         // register /** resource handler.
         registry.addResourceHandler("/**")
-            .addResourceLocations("classpath:/admin/")
-            .addResourceLocations(workDir + "static/");
+                .addResourceLocations("classpath:/admin/")
+                .addResourceLocations(workDir + "static/");
 
         // register /themes/** resource handler.
         registry.addResourceHandler("/themes/**")
-            .addResourceLocations(workDir + "templates/themes/");
+                .addResourceLocations(workDir + "templates/themes/");
 
         String uploadUrlPattern = ensureBoth(haloProperties.getUploadUrlPrefix(), URL_SEPARATOR) + "**";
         String adminPathPattern = ensureSuffix(haloProperties.getAdminPath(), URL_SEPARATOR) + "**";
 
         registry.addResourceHandler(uploadUrlPattern)
-            .setCacheControl(CacheControl.maxAge(7L, TimeUnit.DAYS))
-            .addResourceLocations(workDir + "upload/");
+                .setCacheControl(CacheControl.maxAge(7L, TimeUnit.DAYS))
+                .addResourceLocations(workDir + "upload/");
         registry.addResourceHandler(adminPathPattern)
-            .addResourceLocations("classpath:/admin/");
+                .addResourceLocations("classpath:/admin/");
 
         if (!haloProperties.isDocDisabled()) {
             // If doc is enable
             registry.addResourceHandler("swagger-ui.html")
-                .addResourceLocations("classpath:/META-INF/resources/");
+                    .addResourceLocations("classpath:/META-INF/resources/");
             registry.addResourceHandler("/webjars/**")
-                .addResourceLocations("classpath:/META-INF/resources/webjars/");
+                    .addResourceLocations("classpath:/META-INF/resources/webjars/");
         }
     }
 
@@ -156,6 +162,25 @@ public class WebMvcAutoConfiguration extends WebMvcConfigurationSupport {
         configurer.setConfiguration(configuration);
 
         return configurer;
+    }
+
+    /**
+     * Configuring multipartResolver for large file upload..
+     *
+     * @return new multipartResolver
+     */
+    @Bean(name = "multipartResolver")
+    public MultipartResolver multipartResolver(MultipartProperties multipartProperties) {
+        MultipartConfigElement multipartConfigElement = multipartProperties.createMultipartConfig();
+        CommonsMultipartResolver resolver = new CommonsMultipartResolver();
+        resolver.setDefaultEncoding("UTF-8");
+        resolver.setMaxUploadSize(multipartConfigElement.getMaxRequestSize());
+        resolver.setMaxUploadSizePerFile(multipartConfigElement.getMaxFileSize());
+
+        //lazy multipart parsing, throwing parse exceptions once the application attempts to obtain multipart files
+        resolver.setResolveLazily(true);
+
+        return resolver;
     }
 
     /**

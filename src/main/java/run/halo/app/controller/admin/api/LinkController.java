@@ -53,10 +53,9 @@ public class LinkController {
     @PutMapping("{id:\\d+}")
     @ApiOperation("Updates a link")
     public LinkDTO updateBy(@PathVariable("id") Integer id,
-                            @RequestBody @Valid LinkParam linkParam) {
-        Link link = linkService.getById(id);
-        linkParam.update(link);
-        return new LinkDTO().convertFrom(linkService.update(link));
+            @RequestBody @Valid LinkParam linkParam) {
+        Link link = linkService.updateBy(id, linkParam);
+        return new LinkDTO().convertFrom(link);
     }
 
     @DeleteMapping("{id:\\d+}")

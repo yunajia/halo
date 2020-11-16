@@ -245,7 +245,7 @@ public class HaloUtils {
         Assert.hasText(originalUrl, "Original Url must not be blank");
 
         if (StringUtils.startsWithAny(originalUrl, URL_SEPARATOR, HaloConst.PROTOCOL_HTTPS, HaloConst.PROTOCOL_HTTP)
-            && !StringUtils.startsWith(originalUrl, "//")) {
+                && !StringUtils.startsWith(originalUrl, "//")) {
             return originalUrl;
         }
 
@@ -274,6 +274,9 @@ public class HaloUtils {
      * @return text before cleaned
      */
     public static String cleanHtmlTag(String content) {
-        return content.replaceAll(RE_HTML_MARK, "");
+        if (StringUtils.isEmpty(content)) {
+            return StringUtils.EMPTY;
+        }
+        return content.replaceAll(RE_HTML_MARK, StringUtils.EMPTY);
     }
 }
